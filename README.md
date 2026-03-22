@@ -16,6 +16,12 @@ The system is designed to bridge **data → analysis → policy recommendation**
 
 ---
 
+## Model Comparison
+Standard LLM vs Policy-aware Expert LLM
+![Comparison Demo](assets/demo.png)
+
+---
+
 ## Objectives
 
 * Build a **domain-adapted LLM** for environmental policy applications
