@@ -8,7 +8,7 @@ This project aims to develop a **policy-specialized large language model (LLM)**
 * Scientific literature (e.g., arXiv)
 * Air quality data sources (e.g., OpenAQ, GEOS-based outputs)
 
-The system is designed to bridge **data → analysis → policy recommendation**, enabling:
+The system is designed to bridge **Data → Retrieval → Reasoning → Policy Recommendation**, enabling:
 
 * Context-aware interpretation of PM2.5 and AQI
 * Policy-oriented responses with structured reasoning
@@ -43,6 +43,7 @@ Standard LLM vs Policy-aware Expert LLM
   * HTML/PDF parsing
   * Text cleaning
   * Chunking
+
 * Dataset construction:
 
   * Instruction / QA generation from documents
@@ -53,7 +54,16 @@ Standard LLM vs Policy-aware Expert LLM
 
   * Local inference engine
   * Chatbot API integration (FastAPI)
-* (Optional) Retrieval-Augmented Generation (RAG)
+
+* Retrieval-Augmented Generation (RAG)
+  * Documents → embeddings
+  * Stored in vector DB
+  * Query → embedding →similarity search
+
+* Fine-tuning
+  * Input-output training pairs
+  * Updates model weights
+  * Contorols behavior and style
 
 ---
 
@@ -74,27 +84,29 @@ Standard LLM vs Policy-aware Expert LLM
                              ▼
                 ┌────────────────────────┐
                 │  Preprocessing         │
-                │  - Text extraction     │
                 │  - Cleaning            │
                 │  - Chunking            │
                 └────────────┬───────────┘
                              │
-                             ▼
+          ┌──────────────────┴──────────────────┐
+          │                                     │
+          ▼                                     ▼
+┌────────────────────────┐          ┌────────────────────────┐
+│  Vector DB (RAG)       │          │ Dataset Construction   │
+│  - Embeddings          │          │ (QA / Instruction)     │
+│  - Similarity Search   │          └────────────┬───────────┘
+└────────────┬───────────┘                       │
+             │                                   ▼
+             │                      ┌────────────────────────┐
+             │                      │ Fine-tuning (LoRA)     │
+             │                      │ Llama-based model      │
+             │                      └────────────┬───────────┘
+             │                                   │
+             └──────────────┬────────────────────┘
+                            ▼
                 ┌────────────────────────┐
-                │ Dataset Construction   │
-                │  (QA / Instruction)    │
-                └────────────┬───────────┘
-                             │
-                             ▼
-                ┌────────────────────────┐
-                │ Fine-tuning (LoRA)     │
-                │  Llama-based model     │
-                └────────────┬───────────┘
-                             │
-                             ▼
-                ┌────────────────────────┐
-                │  Local Inference API   │
-                │  (FastAPI / vLLM)      │
+                │  Inference Layer       │
+                │  (LLM + Retrieved Data)│
                 └────────────┬───────────┘
                              │
                              ▼
@@ -138,13 +150,21 @@ policy_llm_project/
 
 ## Pipeline
 
+The system supports **two complementary pipelines**:
+- **RAG (Retrieval-Augmented Generation)** → dynamic knowledge retrieval  
+- **Fine-tuning** → domain-specific reasoning and response formatting  
+
+These pipelines can be used independently or combined.
+
+---
+
 ### Step 1: Data Collection
 
 Collect documents from:
 
 * Government websites
 * Policy reports (PDF)
-* arXiv API
+* Scientific sources (e.g., arXiv API)
 
 ```bash
 python scripts/run_collect.py
@@ -157,6 +177,7 @@ python scripts/run_collect.py
 * Extract text (HTML / PDF)
 * Clean and normalize
 * Remove noise
+* Standardize formats
 
 ```bash
 python scripts/run_preprocess.py
@@ -166,34 +187,56 @@ python scripts/run_preprocess.py
 
 ### Step 3: Chunking
 
-Split documents into manageable chunks for training and retrieval.
+Split documents into manageable chunks for.
+* Embedding (RAG)
+* Training dataset (fine-tuning)
+---
+
+## RAG Pipeline (Vector-Based Retrieval)
+### Step 4a: Embedding & Vector Database 
+* Convert text chunks → embeddings
+* Store in vector database (FAISS / Chroma / etc.)
+* Enable similarity search
+
+```bash
+python scripts/run_rag.py
+```
 
 ---
 
-### Step 4: Dataset Construction
+### Step 5a: Retrieval at Interference Time 
+* User query → embedding
+* Retrieve top-k similar documents
+* Inject retrieved context into LLM
 
-Generate instruction-style or QA-style training data.
+---
 
+## Fine-tuning Pipeline (Model Adaption)
+### Step 4b: Data Construction 
+Generate instruction-style or QA-style training data:
+* Input → Output pairs
+* Policy-aware responses
+* AQI interpretation rules
+ 
 ```bash
 python scripts/run_build_dataset.py
 ```
 
 ---
-
-### Step 5: Fine-tuning
-
-Train a Llama-based model using LoRA.
-
+### Step 5b: Fine-tuning
+Train a Llama-based model using LoRA / QLoRA:
+ 
 ```bash
 python scripts/run_train.py
 ```
-
 ---
 
 ### Step 6: Inference / Chatbot
 
-Run local inference and connect to chatbot API.
-
+Combine both approaches.
+* RAG → provides up-to-date knowledge
+* Fine-tuned LLM → provides structured reasoning and response style
+  
 ```bash
 python scripts/run_serve.py
 ```
@@ -225,7 +268,7 @@ This project compares three approaches:
 
 * Domain-adapted using policy documents
 
-### 3. RAG + Fine-tuned LLM (Recommended)
+### 3. RAG + Fine-tuned LLM 
 
 * Retrieval for up-to-date knowledge
 * Fine-tuning for response structure and reasoning
